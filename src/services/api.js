@@ -67,6 +67,53 @@ export const adminLogin = (payload) =>
 export const adminRequest = (path, options = {}) =>
   apiRequest(path, { ...options, token: getAdminToken() })
 
+const resolveCsvFilename = (headerValue) => {
+  if (!headerValue) {
+    return null
+  }
+  const utfMatch = headerValue.match(/filename\*=UTF-8''([^;]+)/i)
+  if (utfMatch) {
+    return decodeURIComponent(utfMatch[1])
+  }
+  const asciiMatch = headerValue.match(/filename="?([^";]+)"?/i)
+  return asciiMatch ? asciiMatch[1] : null
+}
+
+const downloadAdminCsv = async (path, params = {}, fallbackName) => {
+  const token = getAdminToken()
+  const searchParams = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      searchParams.set(key, value)
+    }
+  })
+
+  const query = searchParams.toString()
+  const response = await fetch(
+    `${API_BASE_URL}${path}${query ? `?${query}` : ''}`,
+    {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    },
+  )
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    let message = 'Request failed. Please try again.'
+    try {
+      const parsed = JSON.parse(errorText)
+      message = parsed?.message || parsed?.error || message
+    } catch {
+      message = errorText || message
+    }
+    throw new Error(message)
+  }
+
+  const blob = await response.blob()
+  const headerValue = response.headers.get('content-disposition')
+  const filename = resolveCsvFilename(headerValue) || fallbackName
+  return { blob, filename }
+}
+
 export const sendTradeMessage = (category, payload) =>
   adminRequest(`/api/advice-v2/${category}`, {
     method: 'POST',
@@ -84,6 +131,27 @@ export const uploadAdminImage = (formData) =>
     method: 'POST',
     body: formData,
   })
+
+export const downloadAdminPhonesCsv = () =>
+  downloadAdminCsv(
+    '/api/auth/admin/users/phones/download',
+    {},
+    'phone-numbers.csv',
+  )
+
+export const downloadWalletWithdrawalsCsv = (params = {}) =>
+  downloadAdminCsv(
+    '/api/wallet/withdrawals/export.csv',
+    params,
+    'wallet-withdrawals.csv',
+  )
+
+export const downloadReferralWithdrawalsCsv = (params = {}) =>
+  downloadAdminCsv(
+    '/api/admin/referrals/withdrawals/export.csv',
+    params,
+    'referral-withdrawals.csv',
+  )
 
 export const fetchDashboardOverview = (params = {}) => {
   const searchParams = new URLSearchParams()

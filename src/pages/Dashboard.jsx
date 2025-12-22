@@ -8,6 +8,9 @@ import {
   sendDailyTip,
   sendTradeMessage,
   uploadAdminImage,
+  downloadAdminPhonesCsv,
+  downloadWalletWithdrawalsCsv,
+  downloadReferralWithdrawalsCsv,
   updateAdminReferralWithdrawal,
 } from '../services/api'
 
@@ -53,6 +56,11 @@ const Dashboard = () => {
     loading: false,
     error: '',
   })
+  const [phonesCsvStatus, setPhonesCsvStatus] = useState({
+    loading: false,
+    error: '',
+    success: '',
+  })
   const [searchInput, setSearchInput] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [referralFocus, setReferralFocus] = useState(null)
@@ -75,6 +83,11 @@ const Dashboard = () => {
   const [withdrawalsStatus, setWithdrawalsStatus] = useState({
     loading: false,
     error: '',
+  })
+  const [withdrawalsCsvStatus, setWithdrawalsCsvStatus] = useState({
+    loadingKey: '',
+    error: '',
+    success: '',
   })
   const [withdrawalsFilter, setWithdrawalsFilter] = useState('pending')
   const [withdrawalSearchInput, setWithdrawalSearchInput] = useState('')
@@ -1013,6 +1026,66 @@ const Dashboard = () => {
     setFormValues((prev) => ({ ...prev, [name]: value }))
   }
 
+  const downloadCsvFile = ({ blob, filename }) => {
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  }
+
+  const handlePhonesCsvDownload = async () => {
+    setPhonesCsvStatus({ loading: true, error: '', success: '' })
+    try {
+      const file = await downloadAdminPhonesCsv()
+      downloadCsvFile(file)
+      setPhonesCsvStatus({
+        loading: false,
+        error: '',
+        success: 'Phone list CSV downloaded.',
+      })
+    } catch (error) {
+      setPhonesCsvStatus({
+        loading: false,
+        error: error?.message || 'Unable to download phone list CSV.',
+        success: '',
+      })
+    }
+  }
+
+  const handleWithdrawalsCsvDownload = async (type) => {
+    const userId = withdrawalSearchInput.trim()
+    const params = {
+      status: withdrawalsFilter,
+      userId: userId || undefined,
+    }
+
+    setWithdrawalsCsvStatus({ loadingKey: type, error: '', success: '' })
+    try {
+      const file =
+        type === 'wallet'
+          ? await downloadWalletWithdrawalsCsv(params)
+          : await downloadReferralWithdrawalsCsv(params)
+      downloadCsvFile(file)
+      setWithdrawalsCsvStatus({
+        loadingKey: '',
+        error: '',
+        success: `${
+          type === 'wallet' ? 'Wallet' : 'Referral'
+        } withdrawals CSV downloaded.`,
+      })
+    } catch (error) {
+      setWithdrawalsCsvStatus({
+        loadingKey: '',
+        error: error?.message || 'Unable to download withdrawals CSV.',
+        success: '',
+      })
+    }
+  }
+
   const handleImageSelect = (event) => {
     const file = event.target.files?.[0] || null
     if (file && !file.type.startsWith('image/')) {
@@ -1269,11 +1342,38 @@ const Dashboard = () => {
                   <option value={100}>100 per page</option>
                   <option value={200}>200 per page</option>
                 </select>
+                <button
+                  className="btn btn-outline btn-xs btn-icon"
+                  type="button"
+                  onClick={handlePhonesCsvDownload}
+                  disabled={phonesCsvStatus.loading}
+                  title="Download phone list CSV"
+                  aria-label="Download phone list CSV"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 3v12" />
+                    <path d="m8 11 4 4 4-4" />
+                    <path d="M5 21h14" />
+                  </svg>
+                </button>
               </div>
             </div>
 
             {usersStatus.error ? (
               <p className="form-error">{usersStatus.error}</p>
+            ) : null}
+            {phonesCsvStatus.error ? (
+              <p className="form-error">{phonesCsvStatus.error}</p>
+            ) : null}
+            {phonesCsvStatus.success ? (
+              <p className="form-success">{phonesCsvStatus.success}</p>
             ) : null}
 
             <div className="users-table">
@@ -1717,6 +1817,50 @@ const Dashboard = () => {
                   {formatNumber(withdrawalsData.items.length)}
                 </p>
               </div>
+              <div className="withdrawals-downloads">
+                <button
+                  className="btn btn-outline btn-xs btn-icon"
+                  type="button"
+                  onClick={() => handleWithdrawalsCsvDownload('wallet')}
+                  disabled={withdrawalsCsvStatus.loadingKey === 'wallet'}
+                  title="Download wallet withdrawals CSV"
+                  aria-label="Download wallet withdrawals CSV"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 3v12" />
+                    <path d="m8 11 4 4 4-4" />
+                    <path d="M5 21h14" />
+                  </svg>
+                </button>
+                <button
+                  className="btn btn-outline btn-xs btn-icon"
+                  type="button"
+                  onClick={() => handleWithdrawalsCsvDownload('referral')}
+                  disabled={withdrawalsCsvStatus.loadingKey === 'referral'}
+                  title="Download referral withdrawals CSV"
+                  aria-label="Download referral withdrawals CSV"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 3v12" />
+                    <path d="m8 11 4 4 4-4" />
+                    <path d="M5 21h14" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             {withdrawalsStatus.error ? (
@@ -1727,6 +1871,12 @@ const Dashboard = () => {
             ) : null}
             {withdrawalActionStatus.success ? (
               <p className="form-success">{withdrawalActionStatus.success}</p>
+            ) : null}
+            {withdrawalsCsvStatus.error ? (
+              <p className="form-error">{withdrawalsCsvStatus.error}</p>
+            ) : null}
+            {withdrawalsCsvStatus.success ? (
+              <p className="form-success">{withdrawalsCsvStatus.success}</p>
             ) : null}
 
             <div className="withdrawals-table">

@@ -272,6 +272,18 @@
   box-shadow: 0 18px 30px rgba(192, 57, 43, 0.25);
 }
 
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
 .btn:hover {
   transform: translateY(-1px);
 }
@@ -671,6 +683,13 @@
   border: 1px solid var(--line);
   background: var(--surface);
   min-width: 160px;
+}
+
+.withdrawals-downloads {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .withdrawals-table {
