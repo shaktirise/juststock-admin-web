@@ -79,6 +79,12 @@ export const sendDailyTip = (payload) =>
     body: payload,
   })
 
+export const uploadAdminImage = (formData) =>
+  adminRequest('/api/images/upload', {
+    method: 'POST',
+    body: formData,
+  })
+
 export const fetchDashboardOverview = (params = {}) => {
   const searchParams = new URLSearchParams()
   if (params.from) {

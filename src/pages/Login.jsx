@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import AuthLayout from '../components/AuthLayout'
 import { adminLogin } from '../services/api'
 
@@ -107,11 +107,7 @@ const Login = () => {
     <AuthLayout
       title="Sign in to JustStock"
       subtitle="Enter your admin credentials to reach the command center."
-      footnote={
-        <p>
-          New admin? <Link to="/signup">Create your account</Link>.
-        </p>
-      }
+      footnote={<p>Signup is disabled.</p>}
     >
       <form className="form" onSubmit={handleSubmit}>
         <label className="input-field">

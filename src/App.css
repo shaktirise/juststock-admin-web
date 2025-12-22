@@ -1305,6 +1305,44 @@
   gap: 16px;
 }
 
+.image-upload-card {
+  border-radius: 18px;
+  border: 1px dashed rgba(141, 29, 35, 0.3);
+  background: var(--surface);
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.image-upload-title {
+  margin: 0;
+  font-weight: 600;
+  color: var(--red-900);
+}
+
+.image-upload-note {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.image-upload-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.image-upload-input {
+  display: none;
+}
+
+.image-upload-filename {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .message-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

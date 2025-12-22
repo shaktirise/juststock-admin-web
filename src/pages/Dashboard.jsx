@@ -7,6 +7,7 @@ import {
   fetchAdminReferralWithdrawals,
   sendDailyTip,
   sendTradeMessage,
+  uploadAdminImage,
   updateAdminReferralWithdrawal,
 } from '../services/api'
 
@@ -86,6 +87,7 @@ const Dashboard = () => {
   })
   const [copiedFields, setCopiedFields] = useState({})
   const copyTimeouts = useRef({})
+  const imageInputRef = useRef(null)
   const [expandedLevels, setExpandedLevels] = useState({})
   const [formValues, setFormValues] = useState({
     buy: '',
@@ -98,6 +100,12 @@ const Dashboard = () => {
     error: '',
     success: '',
   })
+  const [uploadStatus, setUploadStatus] = useState({
+    loading: false,
+    error: '',
+    success: '',
+  })
+  const [selectedImage, setSelectedImage] = useState(null)
   const navigate = useNavigate()
   const referralDepth = 10
   const maxReferralsPerLevel = 8
@@ -1003,6 +1011,55 @@ const Dashboard = () => {
   const handleInputChange = (event) => {
     const { name, value } = event.target
     setFormValues((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleImageSelect = (event) => {
+    const file = event.target.files?.[0] || null
+    if (file && !file.type.startsWith('image/')) {
+      setSelectedImage(null)
+      setUploadStatus({
+        loading: false,
+        error: 'Please select an image file.',
+        success: '',
+      })
+      return
+    }
+    setSelectedImage(file)
+    setUploadStatus({ loading: false, error: '', success: '' })
+  }
+
+  const handleImageUpload = async () => {
+    if (!selectedImage) {
+      setUploadStatus({
+        loading: false,
+        error: 'Select an image before uploading.',
+        success: '',
+      })
+      return
+    }
+
+    setUploadStatus({ loading: true, error: '', success: '' })
+    const formData = new FormData()
+    formData.append('image', selectedImage)
+
+    try {
+      await uploadAdminImage(formData)
+      setUploadStatus({
+        loading: false,
+        error: '',
+        success: 'Image uploaded successfully.',
+      })
+      setSelectedImage(null)
+      if (imageInputRef.current) {
+        imageInputRef.current.value = ''
+      }
+    } catch (error) {
+      setUploadStatus({
+        loading: false,
+        error: error?.message || 'Unable to upload image. Try again.',
+        success: '',
+      })
+    }
   }
 
   const handleSubmit = async (event) => {
@@ -2096,6 +2153,48 @@ const Dashboard = () => {
                   {status.loading ? 'Sending...' : 'Send message'}
                 </button>
               </form>
+
+              <div className="image-upload-card">
+                <div>
+                  <p className="image-upload-title">Profit proof image</p>
+                  <p className="image-upload-note">
+                    Upload an image that will be shown to users.
+                  </p>
+                </div>
+                <div className="image-upload-controls">
+                  <input
+                    ref={imageInputRef}
+                    className="image-upload-input"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageSelect}
+                  />
+                  <button
+                    className="btn btn-outline"
+                    type="button"
+                    onClick={() => imageInputRef.current?.click()}
+                  >
+                    Select image
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    type="button"
+                    onClick={handleImageUpload}
+                    disabled={!selectedImage || uploadStatus.loading}
+                  >
+                    {uploadStatus.loading ? 'Uploading...' : 'Upload image'}
+                  </button>
+                </div>
+                <p className="image-upload-filename">
+                  {selectedImage ? selectedImage.name : 'No image selected.'}
+                </p>
+                {uploadStatus.error ? (
+                  <p className="form-error">{uploadStatus.error}</p>
+                ) : null}
+                {uploadStatus.success ? (
+                  <p className="form-success">{uploadStatus.success}</p>
+                ) : null}
+              </div>
             </div>
           </section>
         )}
