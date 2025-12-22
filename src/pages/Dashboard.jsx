@@ -139,6 +139,44 @@ const Dashboard = () => {
     return formatted === '--' ? '--' : `Rs ${formatted}`
   }
 
+  const formatDateTime = (value) => {
+    if (!value) {
+      return null
+    }
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) {
+      return null
+    }
+    return new Intl.DateTimeFormat('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date)
+  }
+
+  const resolveUserCreatedAt = (user) =>
+    user?.createdAt ||
+    user?.created_at ||
+    user?.createdOn ||
+    user?.created_on ||
+    user?.registeredAt ||
+    user?.registered_at ||
+    user?.registeredOn ||
+    user?.signupAt ||
+    user?.signedUpAt ||
+    user?.joinedAt ||
+    user?.joined_at ||
+    user?.dateCreated ||
+    user?.date_created ||
+    null
+
+  const getUserCreatedLine = (user) => {
+    const formatted = formatDateTime(resolveUserCreatedAt(user))
+    return formatted ? `Created: ${formatted}` : 'Created: --'
+  }
+
   const resolveRupees = (rupeesValue, paiseValue) => {
     const rupeesNumeric = parseNumericValue(rupeesValue)
     if (rupeesNumeric !== null) {
@@ -1021,7 +1059,7 @@ const Dashboard = () => {
                   >
                     <div className="user-cell">
                       <p className="user-primary">{user?.name || 'Unnamed user'}</p>
-                      <p className="user-secondary">{user?.role || 'user'}</p>
+                      <p className="user-secondary">{getUserCreatedLine(user)}</p>
                     </div>
                     <div className="user-cell">{user?.phone || '--'}</div>
                     <div className="user-cell">{user?.email || '--'}</div>
