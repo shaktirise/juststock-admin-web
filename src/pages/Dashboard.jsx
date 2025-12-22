@@ -16,11 +16,7 @@ const navItems = [
   { key: 'users', label: 'Users', enabled: true },
   { key: 'referrals', label: 'Referrals', enabled: true },
   { key: 'withdrawals', label: 'Withdrawals', enabled: true },
-  { key: 'inventory', label: 'Inventory', enabled: false },
-  { key: 'orders', label: 'Orders', enabled: false },
-  { key: 'pricing', label: 'Pricing', enabled: false },
-  { key: 'reports', label: 'Reports', enabled: false },
-  { key: 'settings', label: 'Settings', enabled: false },
+  { key: 'settings', label: 'Settings', enabled: true },
 ]
 
 const categories = [
@@ -106,11 +102,6 @@ const Dashboard = () => {
   const referralDepth = 10
   const maxReferralsPerLevel = 8
 
-  const handleLogout = () => {
-    window.localStorage.removeItem('adminToken')
-    navigate('/login', { replace: true })
-  }
-
   const parseNumericValue = (value) => {
     if (value === null || value === undefined) {
       return null
@@ -175,6 +166,199 @@ const Dashboard = () => {
   const getUserCreatedLine = (user) => {
     const formatted = formatDateTime(resolveUserCreatedAt(user))
     return formatted ? `Created: ${formatted}` : 'Created: --'
+  }
+
+  const safeParseJson = (value, fallback) => {
+    if (!value) {
+      return fallback
+    }
+    try {
+      return JSON.parse(value)
+    } catch {
+      return fallback
+    }
+  }
+
+  const readLocalJson = (key, fallback) => {
+    if (typeof window === 'undefined') {
+      return fallback
+    }
+    return safeParseJson(window.localStorage.getItem(key), fallback)
+  }
+
+  const writeLocalJson = (key, value) => {
+    if (typeof window === 'undefined') {
+      return
+    }
+    window.localStorage.setItem(key, JSON.stringify(value))
+  }
+
+  const decodeJwtPayload = (token) => {
+    if (!token || typeof token !== 'string') {
+      return null
+    }
+    const parts = token.split('.')
+    if (parts.length < 2) {
+      return null
+    }
+    const payload = parts[1]
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = normalized.padEnd(
+      Math.ceil(normalized.length / 4) * 4,
+      '=',
+    )
+    try {
+      const decoded =
+        typeof atob === 'function'
+          ? atob(padded)
+          : typeof Buffer !== 'undefined'
+            ? Buffer.from(padded, 'base64').toString('utf-8')
+            : ''
+      return safeParseJson(decoded, null)
+    } catch {
+      return null
+    }
+  }
+
+  const resolveAdminProfile = () => {
+    if (typeof window === 'undefined') {
+      return { id: '', name: '', email: '' }
+    }
+    const storedProfile = readLocalJson('adminProfile', {})
+    const profile =
+      storedProfile && typeof storedProfile === 'object' ? storedProfile : {}
+    const token = window.localStorage.getItem('adminToken')
+    const payload = decodeJwtPayload(token) || {}
+    return {
+      id:
+        profile.id ||
+        profile._id ||
+        payload.id ||
+        payload._id ||
+        payload.adminId ||
+        payload.userId ||
+        payload.sub ||
+        '',
+      name:
+        profile.name ||
+        payload.name ||
+        payload.fullName ||
+        payload.adminName ||
+        payload.username ||
+        '',
+      email:
+        profile.email ||
+        payload.email ||
+        payload.adminEmail ||
+        payload.username ||
+        '',
+    }
+  }
+
+  const getAdminInitials = (name, email) => {
+    const source = (name || email || 'Admin').trim()
+    if (!source) {
+      return 'AD'
+    }
+    const parts = source.split(/\s+/)
+    if (parts.length === 1) {
+      const cleaned = parts[0].replace(/[^a-zA-Z0-9]/g, '')
+      return cleaned.slice(0, 2).toUpperCase() || 'AD'
+    }
+    return `${parts[0][0] || ''}${parts[1][0] || ''}`.toUpperCase()
+  }
+
+  const normalizeAdminSession = (session) => {
+    if (!session || typeof session !== 'object') {
+      return null
+    }
+    return {
+      id:
+        session.id ||
+        session._id ||
+        session.adminId ||
+        session.userId ||
+        null,
+      name:
+        session.name ||
+        session.adminName ||
+        session.userName ||
+        '',
+      email:
+        session.email ||
+        session.adminEmail ||
+        session.userEmail ||
+        '',
+      loginAt:
+        session.loginAt ||
+        session.loggedInAt ||
+        session.loginTime ||
+        session.createdAt ||
+        null,
+      logoutAt:
+        session.logoutAt ||
+        session.loggedOutAt ||
+        session.logoutTime ||
+        session.updatedAt ||
+        null,
+    }
+  }
+
+  const getAdminSessionLogs = () => {
+    const storedSessions = readLocalJson('adminSessionLogs', [])
+    const sessions = Array.isArray(storedSessions) ? storedSessions : []
+    return sessions
+      .map(normalizeAdminSession)
+      .filter(Boolean)
+      .sort((a, b) => {
+        const timeA = a.loginAt ? new Date(a.loginAt).getTime() : 0
+        const timeB = b.loginAt ? new Date(b.loginAt).getTime() : 0
+        const safeA = Number.isNaN(timeA) ? 0 : timeA
+        const safeB = Number.isNaN(timeB) ? 0 : timeB
+        return safeB - safeA
+      })
+  }
+
+  const recordAdminLogout = () => {
+    if (typeof window === 'undefined') {
+      return
+    }
+    const profile = resolveAdminProfile()
+    const storedSessions = readLocalJson('adminSessionLogs', [])
+    if (!Array.isArray(storedSessions) || storedSessions.length === 0) {
+      return
+    }
+    const matchIndex = storedSessions.findIndex((entry) => {
+      if (!entry || typeof entry !== 'object' || entry.logoutAt) {
+        return false
+      }
+      const entryEmail =
+        entry.email || entry.adminEmail || entry.userEmail || ''
+      const entryId =
+        entry.id || entry._id || entry.adminId || entry.userId || ''
+      if (profile.email && entryEmail && profile.email === entryEmail) {
+        return true
+      }
+      if (profile.id && entryId && profile.id === entryId) {
+        return true
+      }
+      return false
+    })
+    if (matchIndex === -1) {
+      return
+    }
+    const nextSessions = [...storedSessions]
+    nextSessions[matchIndex] = {
+      ...nextSessions[matchIndex],
+      logoutAt: new Date().toISOString(),
+    }
+    writeLocalJson('adminSessionLogs', nextSessions)
+  }
+
+  const handleLogout = () => {
+    recordAdminLogout()
+    window.localStorage.removeItem('adminToken')
+    navigate('/login', { replace: true })
   }
 
   const resolveRupees = (rupeesValue, paiseValue) => {
@@ -654,6 +838,12 @@ const Dashboard = () => {
       : null,
   ].filter(Boolean)
 
+  const adminProfile = resolveAdminProfile()
+  const adminName = adminProfile.name || adminProfile.email || 'Admin'
+  const adminEmail = adminProfile.email || '--'
+  const adminInitials = getAdminInitials(adminName, adminEmail)
+  const adminSessionLogs = getAdminSessionLogs()
+
   const toggleLevel = (levelNumber) => {
     setExpandedLevels((prev) => ({
       ...prev,
@@ -891,6 +1081,8 @@ const Dashboard = () => {
           ? 'Referrals'
           : activeTab === 'withdrawals'
             ? 'Withdrawals'
+            : activeTab === 'settings'
+              ? 'Settings'
             : 'Home'
   const isCompactTab =
     activeTab === 'home' || activeTab === 'referrals' || activeTab === 'withdrawals'
@@ -1694,6 +1886,94 @@ const Dashboard = () => {
                   No withdrawal requests found.
                 </div>
               ) : null}
+            </div>
+          </section>
+        )}
+
+        {activeTab === 'settings' && (
+          <section className="settings-panel fade-in">
+            <div className="overview-header">
+              <div>
+                <p className="overview-kicker">Account</p>
+                <h3>Admin settings</h3>
+                <p>Review profile details and admin login activity.</p>
+              </div>
+            </div>
+
+            <div className="profile-grid">
+              <article className="profile-card">
+                <div className="profile-header">
+                  <div className="profile-avatar">{adminInitials}</div>
+                  <div>
+                    <p className="profile-title">Profile</p>
+                    <p className="profile-subtitle">Signed-in admin account.</p>
+                  </div>
+                </div>
+                <div className="profile-list">
+                  <div>
+                    <p className="profile-label">Admin name</p>
+                    <p className="profile-value">{adminName}</p>
+                  </div>
+                  <div>
+                    <p className="profile-label">Admin email</p>
+                    <p className="profile-value">{adminEmail}</p>
+                  </div>
+                </div>
+                <button
+                  className="btn btn-outline"
+                  type="button"
+                  onClick={handleLogout}
+                >
+                  Log out
+                </button>
+              </article>
+
+              <article className="activity-card">
+                <div>
+                  <p className="overview-kicker">Admins</p>
+                  <h3>Login and logout details</h3>
+                  <p>All admin login/logout activity at a glance.</p>
+                </div>
+                {adminSessionLogs.length > 0 ? (
+                  <div className="activity-list">
+                    {adminSessionLogs.map((session, index) => {
+                      const loginLabel = formatDateTime(session.loginAt) || '--'
+                      const logoutLabel = session.logoutAt
+                        ? formatDateTime(session.logoutAt) || '--'
+                        : 'Active'
+                      const displayName =
+                        session.name || session.email || 'Admin'
+
+                      return (
+                        <div
+                          key={session.id || session.email || `${index}`}
+                          className="activity-item"
+                        >
+                          <div>
+                            <p className="activity-title">{displayName}</p>
+                            {session.email && session.email !== displayName ? (
+                              <p className="activity-detail">{session.email}</p>
+                            ) : null}
+                            <p className="activity-detail">
+                              Login: {loginLabel}
+                            </p>
+                            <p className="activity-detail">
+                              Logout: {logoutLabel}
+                            </p>
+                          </div>
+                          <span className="activity-time">
+                            {session.logoutAt ? 'Logged out' : 'Active'}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className="user-secondary">
+                    No admin login activity recorded yet.
+                  </p>
+                )}
+              </article>
             </div>
           </section>
         )}

@@ -3,6 +3,17 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import AuthLayout from '../components/AuthLayout'
 import { adminLogin } from '../services/api'
 
+const safeParseJson = (value, fallback) => {
+  if (!value) {
+    return fallback
+  }
+  try {
+    return JSON.parse(value)
+  } catch {
+    return fallback
+  }
+}
+
 const Login = () => {
   const navigate = useNavigate()
   const location = useLocation()
@@ -38,6 +49,51 @@ const Login = () => {
       }
 
       window.localStorage.setItem('adminToken', token)
+      const adminProfile = {
+        id:
+          data?.admin?.id ||
+          data?.admin?._id ||
+          data?.data?.admin?.id ||
+          data?.data?.admin?._id ||
+          data?.user?.id ||
+          data?.user?._id ||
+          data?.data?.user?.id ||
+          data?.data?.user?._id ||
+          data?.id ||
+          data?._id ||
+          null,
+        name:
+          data?.admin?.name ||
+          data?.data?.admin?.name ||
+          data?.user?.name ||
+          data?.data?.user?.name ||
+          data?.name ||
+          '',
+        email:
+          data?.admin?.email ||
+          data?.data?.admin?.email ||
+          data?.user?.email ||
+          data?.data?.user?.email ||
+          data?.email ||
+          formValues.email.trim(),
+      }
+      window.localStorage.setItem('adminProfile', JSON.stringify(adminProfile))
+      const storedLogs = safeParseJson(
+        window.localStorage.getItem('adminSessionLogs'),
+        [],
+      )
+      const logs = Array.isArray(storedLogs) ? storedLogs : []
+      const nextLogs = [
+        {
+          id: adminProfile.id,
+          name: adminProfile.name,
+          email: adminProfile.email,
+          loginAt: new Date().toISOString(),
+          logoutAt: null,
+        },
+        ...logs,
+      ].slice(0, 100)
+      window.localStorage.setItem('adminSessionLogs', JSON.stringify(nextLogs))
       navigate('/app', { replace: true })
     } catch (error) {
       setStatus({
