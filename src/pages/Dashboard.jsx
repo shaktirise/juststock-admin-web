@@ -1055,10 +1055,10 @@ const Dashboard = () => {
     rootPendingValue !== null
       ? { label: 'Pending', value: formatRupees(rootPendingValue) }
       : null,
+    rootStatus ? { key: 'status', value: rootStatus } : null,
     rootReferralCount !== null
       ? { label: 'Referrals', value: formatNumber(rootReferralCount) }
       : null,
-    rootStatus ? { label: 'Status', value: rootStatus } : null,
   ].filter(Boolean)
 
   const adminProfile = resolveAdminProfile()
@@ -1842,8 +1842,12 @@ const Dashboard = () => {
                     {rootChips.length > 0 ? (
                       <div className="referral-chips">
                         {rootChips.map((chip) => (
-                          <span key={chip.label} className="referral-chip">
-                            {chip.label}: {chip.value}
+                          <span
+                            key={chip.key || chip.label || chip.value}
+                            className="referral-chip"
+                          >
+                            {chip.label ? `${chip.label}: ` : ''}
+                            {chip.value}
                           </span>
                         ))}
                       </div>
@@ -1904,16 +1908,16 @@ const Dashboard = () => {
                                     value: formatRupees(nodePendingValue),
                                   }
                                 : null,
+                              nodeStatus
+                                ? {
+                                    key: 'status',
+                                    value: nodeStatus,
+                                  }
+                                : null,
                               nodeReferralCount !== null
                                 ? {
                                     label: 'Referrals',
                                     value: formatNumber(nodeReferralCount),
-                                  }
-                                : null,
-                              nodeStatus
-                                ? {
-                                    label: 'Status',
-                                    value: nodeStatus,
                                   }
                                 : null,
                             ].filter(Boolean)
@@ -1938,10 +1942,11 @@ const Dashboard = () => {
                                   <div className="referral-chips">
                                     {nodeChips.map((chip) => (
                                       <span
-                                        key={chip.label}
+                                        key={chip.key || chip.label || chip.value}
                                         className="referral-chip"
                                       >
-                                        {chip.label}: {chip.value}
+                                        {chip.label ? `${chip.label}: ` : ''}
+                                        {chip.value}
                                       </span>
                                     ))}
                                   </div>
