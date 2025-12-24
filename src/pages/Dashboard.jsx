@@ -846,6 +846,12 @@ const Dashboard = () => {
     if (!normalized) {
       return null
     }
+    if (normalized === '1') {
+      return 'Active'
+    }
+    if (normalized === '0') {
+      return 'Inactive'
+    }
     if (
       ['active', 'paid', 'subscribed', 'enabled', 'live', 'current'].includes(
         normalized,
@@ -1036,7 +1042,12 @@ const Dashboard = () => {
     rootUser?.pendingReferralPaise,
   )
   const rootReferralCount = parseNumericValue(rootUser?.referralCount)
-  const rootStatus = resolveUserStatusLabel(rootUser)
+  const rootStatus =
+    resolveUserStatusLabel(rootUser) ||
+    resolveUserStatusLabel(referralUser) ||
+    resolveUserStatusLabel(referralTree?.user) ||
+    resolveUserStatusLabel(referralTree?.root) ||
+    resolveUserStatusLabel(referralTree)
   const rootChips = [
     rootWalletValue !== null
       ? { label: 'Wallet', value: formatRupees(rootWalletValue) }
@@ -1877,7 +1888,9 @@ const Dashboard = () => {
                             const nodeReferralCount = parseNumericValue(
                               node?.referralCount,
                             )
-                            const nodeStatus = resolveUserStatusLabel(node)
+                            const nodeStatus =
+                              resolveUserStatusLabel(node) ||
+                              resolveUserStatusLabel(desc)
                             const nodeChips = [
                               nodeWalletValue !== null
                                 ? {
