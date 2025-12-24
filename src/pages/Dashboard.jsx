@@ -827,6 +827,195 @@ const Dashboard = () => {
       ),
     )
 
+  const normalizeUserStatusLabel = (value) => {
+    if (value === null || value === undefined || value === '') {
+      return null
+    }
+    if (typeof value === 'boolean') {
+      return value ? 'Active' : 'Inactive'
+    }
+    if (typeof value === 'number') {
+      if (value === 1) {
+        return 'Active'
+      }
+      if (value === 0) {
+        return 'Inactive'
+      }
+    }
+    const normalized = String(value).trim().toLowerCase()
+    if (!normalized) {
+      return null
+    }
+    if (
+      ['active', 'paid', 'subscribed', 'enabled', 'live', 'current'].includes(
+        normalized,
+      )
+    ) {
+      return 'Active'
+    }
+    if (
+      [
+        'inactive',
+        'unpaid',
+        'expired',
+        'cancelled',
+        'canceled',
+        'disabled',
+        'paused',
+        'trial_expired',
+        'suspended',
+        'blocked',
+        'past_due',
+        'delinquent',
+      ].includes(normalized)
+    ) {
+      return 'Inactive'
+    }
+    if (['true', 'yes', 'y'].includes(normalized)) {
+      return 'Active'
+    }
+    if (['false', 'no', 'n'].includes(normalized)) {
+      return 'Inactive'
+    }
+    return null
+  }
+
+  const resolveExpiryStatus = (value) => {
+    if (!value) {
+      return null
+    }
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) {
+      return null
+    }
+    return parsed.getTime() > Date.now() ? 'Active' : 'Inactive'
+  }
+
+  const resolveExpiryStatusFromContainer = (container) => {
+    if (!container || typeof container !== 'object') {
+      return null
+    }
+    const expiryCandidates = [
+      container?.subscriptionEndsAt,
+      container?.subscriptionEndAt,
+      container?.subscriptionExpiresAt,
+      container?.planExpiresAt,
+      container?.planExpiry,
+      container?.planExpiryDate,
+      container?.expiresAt,
+      container?.expiryDate,
+      container?.validTill,
+      container?.validUntil,
+      container?.activeUntil,
+      container?.activeTill,
+    ]
+    for (const value of expiryCandidates) {
+      const expiryStatus = resolveExpiryStatus(value)
+      if (expiryStatus) {
+        return expiryStatus
+      }
+    }
+    return null
+  }
+
+  const resolveUserStatusLabel = (user) => {
+    if (!user || typeof user !== 'object') {
+      return null
+    }
+    const invertedFlags = [
+      user?.isExpired,
+      user?.expired,
+      user?.subscriptionExpired,
+      user?.planExpired,
+    ]
+    for (const flag of invertedFlags) {
+      if (typeof flag === 'boolean') {
+        return flag ? 'Inactive' : 'Active'
+      }
+    }
+    const directCandidates = [
+      user?.status,
+      user?.accountStatus,
+      user?.userStatus,
+      user?.subscriptionStatus,
+      user?.planStatus,
+      user?.membershipStatus,
+      user?.paymentStatus,
+      user?.activeStatus,
+      user?.isActive,
+      user?.active,
+      user?.is_active,
+      user?.isPaid,
+      user?.paid,
+      user?.subscriptionActive,
+      user?.planActive,
+      user?.hasActivePlan,
+      user?.isSubscribed,
+      user?.isPremium,
+      user?.isMember,
+    ]
+    for (const candidate of directCandidates) {
+      const label = normalizeUserStatusLabel(candidate)
+      if (label) {
+        return label
+      }
+    }
+    const nestedCandidates = [
+      user?.subscription,
+      user?.plan,
+      user?.membership,
+      user?.account,
+    ]
+    for (const container of nestedCandidates) {
+      if (!container || typeof container !== 'object') {
+        continue
+      }
+      const nestedInverted = [
+        container?.isExpired,
+        container?.expired,
+        container?.subscriptionExpired,
+        container?.planExpired,
+      ]
+      for (const flag of nestedInverted) {
+        if (typeof flag === 'boolean') {
+          return flag ? 'Inactive' : 'Active'
+        }
+      }
+      const nestedValues = [
+        container?.status,
+        container?.planStatus,
+        container?.subscriptionStatus,
+        container?.membershipStatus,
+        container?.paymentStatus,
+        container?.activeStatus,
+        container?.isActive,
+        container?.active,
+        container?.is_active,
+        container?.isPaid,
+        container?.paid,
+        container?.subscriptionActive,
+        container?.planActive,
+        container?.hasActivePlan,
+        container?.isSubscribed,
+      ]
+      for (const candidate of nestedValues) {
+        const label = normalizeUserStatusLabel(candidate)
+        if (label) {
+          return label
+        }
+      }
+      const nestedExpiryStatus = resolveExpiryStatusFromContainer(container)
+      if (nestedExpiryStatus) {
+        return nestedExpiryStatus
+      }
+    }
+    const expiryStatus = resolveExpiryStatusFromContainer(user)
+    if (expiryStatus) {
+      return expiryStatus
+    }
+    return null
+  }
+
   const referralLevels = Array.isArray(referralTree?.levels)
     ? referralTree.levels
     : referralTree?.levels
@@ -847,6 +1036,7 @@ const Dashboard = () => {
     rootUser?.pendingReferralPaise,
   )
   const rootReferralCount = parseNumericValue(rootUser?.referralCount)
+  const rootStatus = resolveUserStatusLabel(rootUser)
   const rootChips = [
     rootWalletValue !== null
       ? { label: 'Wallet', value: formatRupees(rootWalletValue) }
@@ -857,6 +1047,7 @@ const Dashboard = () => {
     rootReferralCount !== null
       ? { label: 'Referrals', value: formatNumber(rootReferralCount) }
       : null,
+    rootStatus ? { label: 'Status', value: rootStatus } : null,
   ].filter(Boolean)
 
   const adminProfile = resolveAdminProfile()
@@ -1686,6 +1877,7 @@ const Dashboard = () => {
                             const nodeReferralCount = parseNumericValue(
                               node?.referralCount,
                             )
+                            const nodeStatus = resolveUserStatusLabel(node)
                             const nodeChips = [
                               nodeWalletValue !== null
                                 ? {
@@ -1703,6 +1895,12 @@ const Dashboard = () => {
                                 ? {
                                     label: 'Referrals',
                                     value: formatNumber(nodeReferralCount),
+                                  }
+                                : null,
+                              nodeStatus
+                                ? {
+                                    label: 'Status',
+                                    value: nodeStatus,
                                   }
                                 : null,
                             ].filter(Boolean)
