@@ -1053,6 +1053,121 @@
   color: var(--red-900);
 }
 
+.nonpaid-panel {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.nonpaid-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.nonpaid-title {
+  margin: 0 0 6px;
+  color: var(--red-900);
+  font-size: clamp(16px, 1.4vw, 20px);
+}
+
+.nonpaid-note {
+  margin: 0;
+  color: var(--muted);
+}
+
+.nonpaid-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.nonpaid-summary {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  min-width: 140px;
+}
+
+.nonpaid-value {
+  margin: 0;
+  font-weight: 600;
+  color: var(--red-900);
+}
+
+.nonpaid-table {
+  display: grid;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.nonpaid-row {
+  display: grid;
+  grid-template-columns: 1.4fr 0.8fr;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(141, 29, 35, 0.16);
+  background: #fff;
+  min-width: 420px;
+}
+
+.nonpaid-row-head {
+  background: linear-gradient(
+    90deg,
+    rgba(141, 29, 35, 0.14),
+    rgba(141, 29, 35, 0.04)
+  );
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--red-900);
+  font-weight: 700;
+}
+
+.nonpaid-row-empty {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  min-width: auto;
+  color: var(--muted);
+}
+
+.nonpaid-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.nonpaid-count {
+  margin: 0;
+}
+
+.nonpaid-pagination {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nonpaid-page {
+  color: var(--ink);
+  font-weight: 600;
+}
+
 .referral-tree {
   display: flex;
   gap: 18px;
@@ -1643,6 +1758,10 @@
 
   .withdrawals-row {
     min-width: 900px;
+  }
+
+  .nonpaid-row {
+    min-width: 360px;
   }
 
   .referral-toolbar {

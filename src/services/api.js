@@ -200,6 +200,20 @@ export const fetchAdminUser = (userId, params = {}) => {
   )
 }
 
+export const fetchAdminUserNonPaidReferrals = (userId, params = {}) => {
+  const searchParams = new URLSearchParams()
+  const page = params.page ?? 1
+  const pageSize = params.pageSize ?? 25
+
+  searchParams.set('page', page)
+  searchParams.set('pageSize', pageSize)
+
+  const query = searchParams.toString()
+  return adminRequest(
+    `/api/admin/users/${userId}/referrals/non-paid${query ? `?${query}` : ''}`,
+  )
+}
+
 export const fetchAdminReferralWithdrawals = (params = {}) => {
   const searchParams = new URLSearchParams()
   if (params.status) {

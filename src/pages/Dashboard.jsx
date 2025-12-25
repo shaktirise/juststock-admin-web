@@ -4,6 +4,7 @@ import {
   fetchDashboardOverview,
   fetchAdminUsers,
   fetchAdminUser,
+  fetchAdminUserNonPaidReferrals,
   fetchAdminReferralWithdrawals,
   sendDailyTip,
   sendTradeMessage,
@@ -77,6 +78,16 @@ const Dashboard = () => {
     error: '',
   })
   const [referralUser, setReferralUser] = useState(null)
+  const [nonPaidReferrals, setNonPaidReferrals] = useState({
+    items: [],
+    page: 1,
+    pageSize: 25,
+    total: 0,
+  })
+  const [nonPaidStatus, setNonPaidStatus] = useState({
+    loading: false,
+    error: '',
+  })
   const [withdrawalsData, setWithdrawalsData] = useState({
     items: [],
   })
@@ -188,6 +199,7 @@ const Dashboard = () => {
     const formatted = formatDateTime(resolveUserCreatedAt(user))
     return formatted ? `Created: ${formatted}` : 'Created: --'
   }
+
 
   const safeParseJson = (value, fallback) => {
     if (!value) {
@@ -818,11 +830,114 @@ const Dashboard = () => {
     [referralDepth],
   )
 
+  const loadNonPaidReferrals = useCallback(
+    (userId, params = {}) => {
+      if (!userId) {
+        setNonPaidReferrals((prev) => ({
+          ...prev,
+          items: [],
+          total: 0,
+          page: 1,
+        }))
+        setNonPaidStatus({ loading: false, error: '' })
+        return
+      }
+
+      const page = params.page ?? nonPaidReferrals.page ?? 1
+      const pageSize = params.pageSize ?? nonPaidReferrals.pageSize ?? 25
+      const parsePageNumber = (value) => {
+        if (value === null || value === undefined || value === '') {
+          return null
+        }
+        const numeric = Number(value)
+        return Number.isFinite(numeric) ? numeric : null
+      }
+
+      setNonPaidStatus({ loading: true, error: '' })
+
+      fetchAdminUserNonPaidReferrals(userId, { page, pageSize })
+        .then((data) => {
+          const resolved = data?.data ?? data?.result ?? data
+          const items = Array.isArray(resolved)
+            ? resolved
+            : resolved?.items ||
+              resolved?.referrals ||
+              resolved?.list ||
+              resolved?.results ||
+              resolved?.data ||
+              []
+          const normalizedItems = Array.isArray(items) ? items : []
+          const resolvedTotal = parsePageNumber(
+            resolved?.total ??
+              resolved?.count ??
+              resolved?.totalCount ??
+              resolved?.totalItems ??
+              resolved?.pagination?.total,
+          )
+          const resolvedPage = parsePageNumber(
+            resolved?.page ??
+              resolved?.currentPage ??
+              resolved?.pagination?.page,
+          )
+          const resolvedPageSize = parsePageNumber(
+            resolved?.pageSize ??
+              resolved?.limit ??
+              resolved?.pagination?.pageSize ??
+              resolved?.page_size,
+          )
+
+          setNonPaidReferrals((prev) => ({
+            ...prev,
+            items: normalizedItems,
+            page: resolvedPage ?? page,
+            pageSize: resolvedPageSize ?? pageSize,
+            total: resolvedTotal ?? normalizedItems.length,
+          }))
+          setNonPaidStatus({ loading: false, error: '' })
+        })
+        .catch((error) => {
+          setNonPaidStatus({
+            loading: false,
+            error:
+              error?.message ||
+              'Unable to load non-paid referrals. Please try again.',
+          })
+        })
+    },
+    [nonPaidReferrals.page, nonPaidReferrals.pageSize],
+  )
+
   useEffect(() => {
     if (activeTab === 'referrals' && referralFocus?.id) {
       loadReferralTree(referralFocus.id)
     }
   }, [activeTab, referralFocus, loadReferralTree])
+
+  useEffect(() => {
+    if (activeTab !== 'referrals') {
+      return
+    }
+    if (!referralFocus?.id) {
+      setNonPaidReferrals((prev) => ({
+        ...prev,
+        items: [],
+        total: 0,
+        page: 1,
+      }))
+      setNonPaidStatus({ loading: false, error: '' })
+      return
+    }
+    loadNonPaidReferrals(referralFocus.id, {
+      page: nonPaidReferrals.page,
+      pageSize: nonPaidReferrals.pageSize,
+    })
+  }, [
+    activeTab,
+    referralFocus,
+    nonPaidReferrals.page,
+    nonPaidReferrals.pageSize,
+    loadNonPaidReferrals,
+  ])
 
   useEffect(() => {
     if (activeTab !== 'referrals') {
@@ -904,6 +1019,26 @@ const Dashboard = () => {
 
   const resolveUserId = (user) =>
     user?.id || user?._id || user?.user?.id || user?.user?._id
+
+  const normalizeNonPaidReferral = (entry) => {
+    const candidate = entry?.user || entry?.referral || entry || {}
+    return {
+      id: resolveUserId(candidate) || resolveUserId(entry),
+      name:
+        candidate?.name ||
+        candidate?.fullName ||
+        candidate?.username ||
+        entry?.name ||
+        'User',
+      phone:
+        candidate?.phone ||
+        candidate?.mobile ||
+        candidate?.mobileNumber ||
+        entry?.phone ||
+        entry?.mobile ||
+        '--',
+    }
+  }
 
   const resolveWithdrawalId = (withdrawal) =>
     withdrawal?.id ||
@@ -1129,6 +1264,21 @@ const Dashboard = () => {
     const descendants = level?.descendants || level?.users || level?.items || []
     return sum + descendants.length
   }, 0)
+  const nonPaidItems = Array.isArray(nonPaidReferrals.items)
+    ? nonPaidReferrals.items
+    : []
+  const nonPaidPage = parseNumericValue(nonPaidReferrals.page) ?? 1
+  const nonPaidPageSize = parseNumericValue(nonPaidReferrals.pageSize) ?? 25
+  const nonPaidTotal = parseNumericValue(nonPaidReferrals.total)
+  const nonPaidHasMore =
+    typeof nonPaidTotal === 'number'
+      ? nonPaidPage * nonPaidPageSize < nonPaidTotal
+      : nonPaidItems.length === nonPaidPageSize
+  const nonPaidTotalPages =
+    typeof nonPaidTotal === 'number'
+      ? Math.max(1, Math.ceil(nonPaidTotal / nonPaidPageSize))
+      : null
+  const nonPaidCountLabel = formatNumber(nonPaidTotal ?? nonPaidItems.length)
 
   const rootUser = referralUser || referralFocus || {}
   const rootWalletValue = resolveRupees(
@@ -1179,6 +1329,18 @@ const Dashboard = () => {
     setExpandedLevels((prev) => ({
       ...prev,
       [levelNumber]: !prev[levelNumber],
+    }))
+  }
+
+  const handleNonPaidPageChange = (nextPage) => {
+    if (!referralFocus?.id || nonPaidStatus.loading) {
+      return
+    }
+    const pageLimit = nonPaidTotalPages ?? nextPage
+    const safePage = Math.max(1, Math.min(pageLimit, nextPage))
+    setNonPaidReferrals((prev) => ({
+      ...prev,
+      page: safePage,
     }))
   }
 
@@ -1752,6 +1914,13 @@ const Dashboard = () => {
                             email: user?.email,
                             phone: user?.phone,
                           })
+                          setNonPaidReferrals((prev) => ({
+                            ...prev,
+                            items: [],
+                            total: 0,
+                            page: 1,
+                          }))
+                          setNonPaidStatus({ loading: false, error: '' })
                           setActiveTab('referrals')
                           loadReferralTree(userId)
                         }}
@@ -1879,6 +2048,13 @@ const Dashboard = () => {
                               email: user?.email,
                               phone: user?.phone,
                             })
+                            setNonPaidReferrals((prev) => ({
+                              ...prev,
+                              items: [],
+                              total: 0,
+                              page: 1,
+                            }))
+                            setNonPaidStatus({ loading: false, error: '' })
                             setReferralSearchInput(
                               user?.name || user?.email || user?.phone || '',
                             )
@@ -1919,6 +2095,128 @@ const Dashboard = () => {
                   <p className="referral-value">{referralDepth}</p>
                 </div>
               </div>
+            </div>
+
+            <div className="nonpaid-panel">
+              <div className="nonpaid-header">
+                <div>
+                  <p className="overview-kicker">Non-paid referrals</p>
+                  <h3 className="nonpaid-title">Pending referrals</h3>
+                  <p className="nonpaid-note">
+                    {referralFocus?.id
+                      ? 'Referrals that have not completed payment.'
+                      : 'Select a user to view pending referrals.'}
+                  </p>
+                </div>
+                <div className="nonpaid-actions">
+                  <div className="nonpaid-summary">
+                    <p className="user-secondary">Total</p>
+                    <p className="nonpaid-value">{nonPaidCountLabel}</p>
+                  </div>
+                  <button
+                    className="btn btn-outline btn-xs"
+                    type="button"
+                    onClick={() => loadNonPaidReferrals(referralFocus?.id)}
+                    disabled={!referralFocus?.id || nonPaidStatus.loading}
+                  >
+                    {nonPaidStatus.loading ? 'Refreshing...' : 'Refresh list'}
+                  </button>
+                </div>
+              </div>
+
+              {nonPaidStatus.error ? (
+                <p className="form-error">{nonPaidStatus.error}</p>
+              ) : null}
+
+              <div className="nonpaid-table">
+                <div className="nonpaid-row nonpaid-row-head">
+                  <span>Name</span>
+                  <span>Phone</span>
+                </div>
+
+                {nonPaidStatus.loading && nonPaidItems.length === 0 ? (
+                  <div className="nonpaid-row nonpaid-row-empty">
+                    Loading non-paid referrals...
+                  </div>
+                ) : null}
+
+                {referralFocus?.id
+                  ? nonPaidItems.map((entry, index) => {
+                      const normalized = normalizeNonPaidReferral(entry)
+                      return (
+                        <div
+                          key={
+                            normalized.id ||
+                            normalized.phone ||
+                            entry?.id ||
+                            entry?._id ||
+                            `${index}`
+                          }
+                          className="nonpaid-row"
+                        >
+                          <div className="user-cell">
+                            <p className="user-primary">{normalized.name}</p>
+                            {normalized.id ? (
+                              <p className="user-secondary">
+                                ID: {normalized.id}
+                              </p>
+                            ) : null}
+                          </div>
+                          <div className="user-cell">
+                            {normalized.phone || '--'}
+                          </div>
+                        </div>
+                      )
+                    })
+                  : null}
+
+                {!nonPaidStatus.loading &&
+                referralFocus?.id &&
+                nonPaidItems.length === 0 ? (
+                  <div className="nonpaid-row nonpaid-row-empty">
+                    No non-paid referrals found.
+                  </div>
+                ) : null}
+
+                {!referralFocus?.id ? (
+                  <div className="nonpaid-row nonpaid-row-empty">
+                    Select a user to view non-paid referrals.
+                  </div>
+                ) : null}
+              </div>
+
+              {referralFocus?.id &&
+              (nonPaidPage > 1 ||
+                nonPaidHasMore ||
+                (nonPaidTotalPages && nonPaidTotalPages > 1)) ? (
+                <div className="nonpaid-footer">
+                  <p className="nonpaid-count">
+                    Showing {nonPaidItems.length} of {nonPaidCountLabel} referrals
+                  </p>
+                  <div className="nonpaid-pagination">
+                    <button
+                      className="btn btn-outline btn-xs"
+                      type="button"
+                      onClick={() => handleNonPaidPageChange(nonPaidPage - 1)}
+                      disabled={nonPaidPage <= 1 || nonPaidStatus.loading}
+                    >
+                      Previous
+                    </button>
+                    <span className="nonpaid-page">
+                      Page {nonPaidPage}
+                      {nonPaidTotalPages ? ` of ${nonPaidTotalPages}` : ''}
+                    </span>
+                    <button
+                      className="btn btn-outline btn-xs"
+                      type="button"
+                      onClick={() => handleNonPaidPageChange(nonPaidPage + 1)}
+                      disabled={!nonPaidHasMore || nonPaidStatus.loading}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             {referralStatus.error ? (
