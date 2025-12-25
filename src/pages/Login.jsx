@@ -76,6 +76,38 @@ const Login = () => {
           data?.data?.user?.email ||
           data?.email ||
           formValues.email.trim(),
+        role:
+          data?.admin?.role ||
+          data?.data?.admin?.role ||
+          data?.user?.role ||
+          data?.data?.user?.role ||
+          data?.role ||
+          data?.data?.role ||
+          data?.adminRole ||
+          data?.data?.adminRole ||
+          data?.userRole ||
+          data?.data?.userRole ||
+          data?.admin?.type ||
+          data?.data?.admin?.type ||
+          data?.type ||
+          data?.data?.type ||
+          data?.accountType ||
+          data?.data?.accountType ||
+          '',
+        isSubAdmin:
+          data?.admin?.isSubAdmin ||
+          data?.data?.admin?.isSubAdmin ||
+          data?.user?.isSubAdmin ||
+          data?.data?.user?.isSubAdmin ||
+          data?.isSubAdmin ||
+          data?.data?.isSubAdmin ||
+          data?.admin?.subAdmin ||
+          data?.data?.admin?.subAdmin ||
+          data?.user?.subAdmin ||
+          data?.data?.user?.subAdmin ||
+          data?.subAdmin ||
+          data?.data?.subAdmin ||
+          false,
       }
       window.localStorage.setItem('adminProfile', JSON.stringify(adminProfile))
       const storedLogs = safeParseJson(

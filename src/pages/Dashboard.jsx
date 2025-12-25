@@ -14,13 +14,13 @@ import {
   updateAdminReferralWithdrawal,
 } from '../services/api'
 
-const navItems = [
-  { key: 'home', label: 'Home', enabled: true },
-  { key: 'messages', label: 'Messages', enabled: true },
-  { key: 'users', label: 'Users', enabled: true },
-  { key: 'referrals', label: 'Referrals', enabled: true },
-  { key: 'withdrawals', label: 'Withdrawals', enabled: true },
-  { key: 'settings', label: 'Settings', enabled: true },
+const baseNavItems = [
+  { key: 'home', label: 'Home' },
+  { key: 'messages', label: 'Messages', enabled: false, disabledLabel: 'Disabled' },
+  { key: 'users', label: 'Users' },
+  { key: 'referrals', label: 'Referrals' },
+  { key: 'withdrawals', label: 'Withdrawals', enabled: false, disabledLabel: 'Disabled' },
+  { key: 'settings', label: 'Settings' },
 ]
 
 const categories = [
@@ -241,15 +241,110 @@ const Dashboard = () => {
     }
   }
 
+  const normalizeRoleValue = (value) => {
+    if (value === null || value === undefined) {
+      return ''
+    }
+    if (Array.isArray(value)) {
+      const first = value.find((entry) => entry !== null && entry !== undefined)
+      return first ? String(first).trim().toLowerCase() : ''
+    }
+    if (typeof value === 'object') {
+      return normalizeRoleValue(value.role || value.name || value.type)
+    }
+    return String(value).trim().toLowerCase()
+  }
+
+  const resolveRoleValue = (...candidates) => {
+    for (const candidate of candidates) {
+      const normalized = normalizeRoleValue(candidate)
+      if (normalized) {
+        return normalized
+      }
+    }
+    return ''
+  }
+
+  const isTruthyFlag = (value) => {
+    if (value === true || value === 1) {
+      return true
+    }
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase()
+      return normalized === 'true' || normalized === '1' || normalized === 'yes'
+    }
+    return false
+  }
+
+  const isSubAdminRole = (role) =>
+    ['subadmin', 'sub-admin', 'sub_admin', 'sub admin'].includes(role)
+
+  const resolveIsSubAdmin = (profile, payload) => {
+    if (
+      isTruthyFlag(profile?.isSubAdmin) ||
+      isTruthyFlag(profile?.subAdmin) ||
+      isTruthyFlag(payload?.isSubAdmin) ||
+      isTruthyFlag(payload?.subAdmin)
+    ) {
+      return true
+    }
+    const roleList = []
+    if (Array.isArray(profile?.roles)) {
+      roleList.push(...profile.roles)
+    }
+    if (Array.isArray(payload?.roles)) {
+      roleList.push(...payload.roles)
+    }
+    if (
+      roleList.some((entry) =>
+        isSubAdminRole(normalizeRoleValue(entry)),
+      )
+    ) {
+      return true
+    }
+    const role = resolveRoleValue(
+      profile?.role,
+      profile?.adminRole,
+      profile?.userRole,
+      profile?.type,
+      profile?.adminType,
+      profile?.accountType,
+      payload?.role,
+      payload?.roles,
+      payload?.adminRole,
+      payload?.userRole,
+      payload?.type,
+      payload?.adminType,
+      payload?.accountType,
+    )
+    return isSubAdminRole(role)
+  }
+
   const resolveAdminProfile = () => {
     if (typeof window === 'undefined') {
-      return { id: '', name: '', email: '' }
+      return { id: '', name: '', email: '', role: '', isSubAdmin: false }
     }
     const storedProfile = readLocalJson('adminProfile', {})
     const profile =
       storedProfile && typeof storedProfile === 'object' ? storedProfile : {}
     const token = window.localStorage.getItem('adminToken')
     const payload = decodeJwtPayload(token) || {}
+    const role = resolveRoleValue(
+      profile.role,
+      profile.adminRole,
+      profile.userRole,
+      profile.type,
+      profile.adminType,
+      profile.accountType,
+      payload.role,
+      payload.roles,
+      payload.adminRole,
+      payload.userRole,
+      payload.type,
+      payload.adminType,
+      payload.accountType,
+    )
+    const isSubAdmin = resolveIsSubAdmin(profile, payload)
     return {
       id:
         profile.id ||
@@ -273,6 +368,8 @@ const Dashboard = () => {
         payload.adminEmail ||
         payload.username ||
         '',
+      role,
+      isSubAdmin,
     }
   }
 
@@ -756,6 +853,7 @@ const Dashboard = () => {
       })
   }, [activeTab, referralSearchTerm])
 
+
   const totals =
     overview?.totals || overview?.data?.totals || overview?.result?.totals
   const money = overview?.money || overview?.data?.money || overview?.result?.money
@@ -1062,10 +1160,20 @@ const Dashboard = () => {
   ].filter(Boolean)
 
   const adminProfile = resolveAdminProfile()
+  const isSubAdmin = Boolean(adminProfile.isSubAdmin)
   const adminName = adminProfile.name || adminProfile.email || 'Admin'
   const adminEmail = adminProfile.email || '--'
   const adminInitials = getAdminInitials(adminName, adminEmail)
   const adminSessionLogs = getAdminSessionLogs()
+
+  useEffect(() => {
+    if (!isSubAdmin) {
+      return
+    }
+    if (activeTab === 'messages' || activeTab === 'withdrawals') {
+      setActiveTab('home')
+    }
+  }, [activeTab, isSubAdmin])
 
   const toggleLevel = (levelNumber) => {
     setExpandedLevels((prev) => ({
@@ -1416,6 +1524,15 @@ const Dashboard = () => {
             : activeTab === 'settings'
               ? 'Settings'
             : 'Home'
+  const navItems = baseNavItems.map((item) => {
+    const restricted = isSubAdmin && item.restrictedForSubAdmin
+    const enabled = (item.enabled ?? true) && !restricted
+    return {
+      ...item,
+      enabled,
+      disabledLabel: restricted ? 'Restricted' : item.disabledLabel,
+    }
+  })
   const isCompactTab =
     activeTab === 'home' || activeTab === 'referrals' || activeTab === 'withdrawals'
 
@@ -1446,7 +1563,9 @@ const Dashboard = () => {
             >
               <span className="nav-dot" />
               {item.label}
-              {!item.enabled ? <span className="nav-chip">Soon</span> : null}
+              {!item.enabled && item.disabledLabel ? (
+                <span className="nav-chip">{item.disabledLabel}</span>
+              ) : null}
             </button>
           ))}
         </nav>
@@ -1977,7 +2096,7 @@ const Dashboard = () => {
           </section>
         )}
 
-        {activeTab === 'withdrawals' && (
+        {activeTab === 'withdrawals' && !isSubAdmin && (
           <section className="withdrawals-panel fade-in">
             <div className="overview-header">
               <div>
@@ -2401,7 +2520,7 @@ const Dashboard = () => {
           </section>
         )}
 
-        {activeTab === 'messages' && (
+        {activeTab === 'messages' && !isSubAdmin && (
           <section className="messages-layout fade-in">
             <div className="message-categories">
               {categories.map((category) => (
