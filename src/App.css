@@ -871,14 +871,14 @@
 
 .users-row {
   display: grid;
-  grid-template-columns: 1.3fr 1fr 1.6fr 1fr 1.1fr 0.9fr;
+  grid-template-columns: 1.3fr 1fr 1.6fr 1fr 1.1fr 0.9fr 0.9fr;
   gap: 14px;
   align-items: center;
   padding: 14px 16px;
   border-radius: 16px;
   border: 1px solid rgba(141, 29, 35, 0.16);
   background: #fff;
-  min-width: 860px;
+  min-width: 980px;
 }
 
 .users-row-head {
@@ -920,7 +920,9 @@
 }
 
 .users-row-head span:nth-child(6),
-.users-row .user-cell:nth-child(6) {
+.users-row-head span:nth-child(7),
+.users-row .user-cell:nth-child(6),
+.users-row .user-cell:nth-child(7) {
   justify-self: center;
   text-align: center;
 }
@@ -1061,48 +1063,6 @@
   border: 1px solid var(--line);
   background: #fff;
   box-shadow: var(--shadow);
-}
-
-.nonpaid-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.nonpaid-title {
-  margin: 0 0 6px;
-  color: var(--red-900);
-  font-size: clamp(16px, 1.4vw, 20px);
-}
-
-.nonpaid-note {
-  margin: 0;
-  color: var(--muted);
-}
-
-.nonpaid-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.nonpaid-summary {
-  display: grid;
-  gap: 4px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  min-width: 140px;
-}
-
-.nonpaid-value {
-  margin: 0;
-  font-weight: 600;
-  color: var(--red-900);
 }
 
 .nonpaid-table {
@@ -1753,7 +1713,7 @@
   }
 
   .users-row {
-    min-width: 720px;
+    min-width: 820px;
   }
 
   .withdrawals-row {
